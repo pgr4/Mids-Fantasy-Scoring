@@ -65,19 +65,22 @@ def getTeamRedZonePercent(team):
     
 # RB FER = total yds + 40% x (carries x yds/carry)/(week to week st.dev of carries) + 60% x (red zone carries x team red zone td %)
 def getRBRating(statistic, team):
-    totalyds = statistic.rushing.yards + statistic.passing.yards
-    carries = statistic.rushing.attempts
-    ydspercarry = statistic.rushing.avg_yards
-    redzonecarries = statistic.rushing.redzone_attempts
+    totalyds = statistic['rushing']['yards'] + statistic['receiving']['yards']
+    carries = statistic['rushing']['attempts']
+    blah = 1
+    ydspercarry = statistic['rushing']['avg_yards']
+    redzonecarries = statistic['rushing']['redzone_attempts']
     redzoneteampct = getTeamRedZonePercent(team)
-    return totalyds + (.4 * ((targets * ydspercarry) / blah)) + (.6 * (redzonecarries * redzoneteampct)) 
+    return totalyds + (.4 * ((carries * ydspercarry) / blah)) + (.6 * (redzonecarries * redzoneteampct)) 
 
 # WR FER = total yds + 40% x (targets x yards/target)/(week to week  st.dev of targets) + 60% x (red zone targets x team red zone td %)
 def getWRRating(statistic, team):
-    totalyds = statistic.passing.yards + statistic.passing.yards
-    targets = statistic.passing.attempts
+    totalyds =  statistic['receiving']['yards'] 
+    if 'rushing' in statistic:
+        totalyds += statistic['rushing']['yards']
+    targets = statistic['receiving']['targets']
     blah = 1
-    ydspertarget = statistic.rushing.avg_yards
-    redzonetargets = statistic.rushing.redzone_attempts
+    ydspertarget = statistic['receiving']['avg_yards']
+    redzonetargets = statistic['receiving']['redzone_targets']
     redzoneteampct = getTeamRedZonePercent(team)
     return totalyds + (.4 * ((targets * ydspertarget) / blah)) + (.6 * (redzonetargets * redzoneteampct))

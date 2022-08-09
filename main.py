@@ -2,22 +2,33 @@ import http_requests
 from maths import getRBRating, getWRRating
 import sys
 import constants
-from os import walk
+from os import walk, mkdir, path
+import json
+import datetime
 
 year = 2021
 seasonType = "REG"
 teamIds = []
-mainPath = "C:\\Users\\iampg\\"
-teamPath = f"{mainPath}teams\\"
+mainPath = "C:\\Users\\iampg\\Midtasy\\"
 playerPath = f"{mainPath}players\\"
 rbsPath = f"{playerPath}rbs\\"
 wrsPath = f"{playerPath}wrs\\"
 
+def createDir(dir):
+    if path.exists(dir) == False:
+        mkdir(dir)
+
+def createFolders():
+    createDir(mainPath)
+    createDir(playerPath)
+    createDir(rbsPath)
+    createDir(wrsPath)
+
 def getHierarchyFilePath():
     return f"{mainPath}\\hierarchy.json"
 
-def getRosterFilePath(teamId):
-    return f"{teamPath}\\${teamId}.json"
+def getRosterFilePath():
+    return f"{mainPath}\\teams.json"
 
 def getRBFilePath(playerId):
     return f"{rbsPath}\\{playerId}.json"
@@ -25,9 +36,26 @@ def getRBFilePath(playerId):
 def getWRFilePath(playerId):
     return f"{wrsPath}\\{playerId}.json"
 
-def writeToFile(path, data):
+def writeToObjectFile(path, data):
     f = open(path, "w")
     f.write(data)
+    f.close()
+    
+def writeToArrayFile(path, array):
+    f = open(path, "w")
+    f.write("[")
+    f.close()
+    
+    f = open(path, "a")
+    first = True
+    for data in array:
+        if first == False: 
+            f.write(",")
+        else:
+            first = False
+        f.write(data)
+        
+    f.write("]")
     f.close()
     
 def getFilenamesInDir(dir):
@@ -66,75 +94,71 @@ def usePlayer(player):
 def getDataThroughApi():
     # Get League
     lh = getHierarchy()
+    lh_obj = http_requests.convertToObject(lh)
+    
     teams = []
     rbs = []
     wrs = []
     
     # Obtain all of the team ids in the entire league
-    for conference in lh.conferences:
+    for conference in lh_obj.conferences:
         for division in conference.divisions:
             for team in division.teams:
                 teamIds.append(team.id)
-                teams.append(team)
 
     # Loop Through TeamIds
     for teamId in teamIds:
         # Get Team Roster
         tr = getRoster(teamId)
-        teams.append(tr)
+        tr_obj = http_requests.convertToObject(tr)
+        teams.append(http_requests.convertToString(tr))
         # Loop Through Roster/Players
-        for player in tr.players:
+        for player in tr_obj.players:
             # We only care about WR/RB/QB no scrubs here
             if usePlayer(player): 
                 # Get the player's profile
                 pp = getPlayer(player.id)
+                pp_obj = http_requests.convertToObject(pp)
                 # Loop through the players seasons and get the one you care about 
-                for season in pp.seasons:
+                for season in pp_obj.seasons:
                     # We only care about a single years stats
                     if season.year == year and season.name == seasonType:
                         if player.position == "RB":
-                            rbs.append(pp)
+                            rbs.append((player.name, http_requests.convertToString(pp)))
                         elif player.position == "WR":
-                            wrs.append(pp)
+                            wrs.append((player.name, http_requests.convertToString(pp)))
     
-    return (lh, teams, rbs, wrs)
+    return (http_requests.convertToString(lh),
+            teams, 
+            rbs,
+            wrs)
 
 def getDataThroughFiles():
     # Get League
-    lh = open(getHierarchyFilePath())
+    ## TODO: ...
+    lh = {} ## open(getHierarchyFilePath())
     teams = []
-    for filename in getFilenamesInDir(teamPath):
-        teams.append(open(filename))
+    # TODO: THIS CHANGED TO A SINGLE FILE
+    # for filename in getRosterFilePath():
+    #     teams.append(open(filename))
     rbs = []
     for filename in getFilenamesInDir(rbsPath):
-        rbs.append(open(filename))
+        with open(rbsPath + filename) as file:
+            rbs.append(json.load(file))
     wrs = []
     for filename in getFilenamesInDir(wrsPath):
-        wrs.append(open(filename))
+        with open(wrsPath + filename) as file:
+            wrs.append(json.load(file))
         
     return (lh, teams, rbs, wrs)
-                       
 
-def showScores(players):
-    scores = []
-    # Loop through the players seasons and get the one you care about 
-    for season in pp.seasons:
-        # We only care about a single years stats
-        if season.year == year and season.name == seasonType:
-            if player.position == "RB":
-                # Use the Current Player's team in order to get the 
-                rating = getRBRating(season.teams[0].statistics, tr.alias)
-            elif player.position == "WR":
-                rating = getWRRating(season.teams[0].statistics, tr.alias)
-            else:
-                pass
-    
-    # Add (Name, Position, Score) to list
-    scores.append((player.name, player.position, rating))
-    
+def sortScores(scores):
+    return sortTuples(scores)
+
+def outputScores(scores):
     # Sort the scores
-    scores = sortTuples(scores)
-
+    scores = sortScores(scores)
+    
     # Print RBs sorted by Rating
     print('-------Running Backs-------')
     for score in scores:
@@ -145,7 +169,29 @@ def showScores(players):
     print('-------Wide Receivers-------')
     for score in scores:
         if score[1] == "WR":
-            print(f"{score[0]} - {score[2]}")
+            print(f"{score[0]} - {score[2]}")           
+
+def showScores(players):
+    scores = []
+    for player in players:
+        # Loop through the players seasons and get the one you care about 
+        for season in player['seasons']:
+            # We only care about a single years stats
+            if season['year'] == year and season['name'] == seasonType:
+                # Only go through the scores if the player was good enough to play
+                if season['teams'][0]['statistics']['games_played'] != 0:
+                    if player['position'] == "RB":
+                        # Use the Current Player's team in order to get the 
+                        scores.append((player['name'], player['position'], getRBRating(season['teams'][0]['statistics'], season['teams'][0]['alias'])))
+                    elif player['position'] == "WR":
+                        # Add (Name, Position, Score) to list
+                        scores.append((player['name'], player['position'], getWRRating(season['teams'][0]['statistics'], season['teams'][0]['alias'])))
+                    else:
+                        pass
+    
+    outputScores(scores)
+
+# MAIN    
 
 # total arguments
 n = len(sys.argv)
@@ -158,16 +204,25 @@ print("\nArguments passed:", end = " ")
 for i in range(1, n):
     print(sys.argv[i], end = " ")
 
-match sys.argv[0]:
-        case "download":
-            h, r, rbs, wrs = getDataThroughApi()
-            writeToFile(getHierarchyFilePath(), h)
-            writeToFile(getRosterFilePath(), r)
-            for rb in rbs:
-                writeToFile(getRBFilePath(rb.name), rb)
-            for wr in wrs:
-                writeToFile(getWRFilePath(wr.name), wr)
+match sys.argv[1]:
+        case "--download":
+            createFolders()
+            
+            tuple = getDataThroughApi()
+            lh = tuple[0]
+            teams = tuple[1]
+            rbs = tuple[2]
+            wrs = tuple[3]
+            
+            writeToObjectFile(getHierarchyFilePath(), lh)
+            writeToArrayFile(getRosterFilePath(), teams)
+            for rbTuple in rbs:
+                writeToObjectFile(getRBFilePath(rbTuple[0]), rbTuple[1])
+            for wrTuple in wrs:
+                writeToObjectFile(getWRFilePath(wrTuple[0]), wrTuple[1])
             pass
-        case "run":
-            h, r, rbs, wrs = getDataThroughFiles()
+        case "--run":
+            lh, teams, rbs, wrs = getDataThroughFiles()
+            showScores(rbs)
+            showScores(wrs)
             pass
