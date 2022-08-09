@@ -7,7 +7,9 @@ from types import SimpleNamespace
 from time import sleep
 
 baseUrl = "http://api.sportradar.us/"
-apiKey = "f78x2ss9h2zn2cqrntn949gk"
+apiKey_1 = "f78x2ss9h2zn2cqrntn949gk"
+apiKey_2 = "f78x2ss9h2zn2cqrntn949gk" 
+apiKey = apiKey_2
 languageCode = "en"
 version = "v7"
 # Throttle 1 sec / 1000 per 30 days

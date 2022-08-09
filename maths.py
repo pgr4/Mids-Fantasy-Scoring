@@ -71,7 +71,7 @@ def getRBRating(statistic, team):
     ydspercarry = statistic['rushing']['avg_yards']
     redzonecarries = statistic['rushing']['redzone_attempts']
     redzoneteampct = getTeamRedZonePercent(team)
-    return totalyds + (.4 * ((carries * ydspercarry) / blah)) + (.6 * (redzonecarries * redzoneteampct)) 
+    return scoreRB(totalyds, carries, blah, ydspercarry, redzonecarries, redzoneteampct)
 
 # WR FER = total yds + 40% x (targets x yards/target)/(week to week  st.dev of targets) + 60% x (red zone targets x team red zone td %)
 def getWRRating(statistic, team):
@@ -83,4 +83,10 @@ def getWRRating(statistic, team):
     ydspertarget = statistic['receiving']['avg_yards']
     redzonetargets = statistic['receiving']['redzone_targets']
     redzoneteampct = getTeamRedZonePercent(team)
+    return scoreWR(totalyds, targets, blah, ydspertarget, redzonetargets, redzoneteampct)
+
+def scoreRB(totalyds, carries, blah, ydspercarry, redzonecarries, redzoneteampct):
+    return totalyds + (.4 * ((carries * ydspercarry) / blah)) + (.6 * (redzonecarries * redzoneteampct))
+  
+def scoreWR(totalyds, targets, blah, ydspertarget, redzonetargets, redzoneteampct):
     return totalyds + (.4 * ((targets * ydspertarget) / blah)) + (.6 * (redzonetargets * redzoneteampct))
