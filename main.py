@@ -1,7 +1,7 @@
 import http_requests
 from maths import getRBRating, getWRRating
 import sys
-import constants
+from constants import full_list
 from os import walk, mkdir, path
 import json
 import datetime
@@ -15,7 +15,7 @@ rbsPath = f"{playerPath}rbs\\"
 wrsPath = f"{playerPath}wrs\\"
 
 def createDir(dir):
-    if path.exists(dir) == False:
+    if doesFileExist(dir) == False:
         mkdir(dir)
 
 def createFolders():
@@ -35,6 +35,9 @@ def getRBFilePath(playerId):
 
 def getWRFilePath(playerId):
     return f"{wrsPath}\\{playerId}.json"
+
+def doesFileExist(filePath):
+    return path.exists(filePath)
 
 def writeToObjectFile(path, data):
     f = open(path, "w")
@@ -79,12 +82,12 @@ def getPlayer(playerId):
 
 def usePlayer(player):
     if player.position == "RB":
-        if constants.rbs.__contains__(player.name):
+        if full_list.__contains__(player.name) and doesFileExist(rbsPath + player.name) == False:
             return True
         else:
             print(f"Ignoring {player.name}")
     if player.position == "WR":
-        if constants.wrs.__contains__(player.name):
+        if full_list.__contains__(player.name) and doesFileExist(wrsPath + player.name) == False:
             return True
         else:
             print(f"Ignoring {player.name}")
@@ -114,7 +117,7 @@ def getDataThroughApi():
         teams.append(http_requests.convertToString(tr))
         # Loop Through Roster/Players
         for player in tr_obj.players:
-            # We only care about WR/RB/QB no scrubs here
+            # We only care about WR/RB/QB no scrubs here and ones we don't have a file for already
             if usePlayer(player): 
                 # Get the player's profile
                 pp = getPlayer(player.id)
@@ -155,18 +158,18 @@ def getDataThroughFiles():
 def sortScores(scores):
     return sortTuples(scores)
 
-def outputScores(scores):
+def outputScores(header, scores):
     # Sort the scores
     scores = sortScores(scores)
     
     # Print RBs sorted by Rating
-    print('-------Running Backs-------')
+    print('header')
     for score in scores:
         if score[1] == "RB":
             print(f"{score[0]} - {score[2]}")
             
     # Print WRs sorted by Rating
-    print('-------Wide Receivers-------')
+    print('')
     for score in scores:
         if score[1] == "WR":
             print(f"{score[0]} - {score[2]}")           
@@ -223,6 +226,6 @@ match sys.argv[1]:
             pass
         case "--run":
             lh, teams, rbs, wrs = getDataThroughFiles()
-            showScores(rbs)
-            showScores(wrs)
+            showScores('-------Running Backs -------', rbs)
+            showScores('-------Wide Receivers-------', wrs)
             pass
